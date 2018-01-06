@@ -1,8 +1,8 @@
 #pragma once
 
 #include <cstdlib>
-#include <OpenMesh/Core/Mesh/TriMesh_ArrayKernelT.hh>
 #include <Eigen/Eigen>
+#include <OpenMesh/Core/Utils/Property.hh>
 
 template <typename Mesh>
 inline OpenMesh::FPropHandleT<Eigen::Vector3d> FaceBaryCenter(Mesh &mesh) {

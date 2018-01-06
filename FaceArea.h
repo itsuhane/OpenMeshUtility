@@ -1,7 +1,7 @@
 #pragma once
 
 #include <cstdlib>
-#include <OpenMesh/Core/Mesh/TriMesh_ArrayKernelT.hh>
+#include <OpenMesh/Core/Utils/Property.hh>
 
 template <typename Mesh>
 inline OpenMesh::FPropHandleT<double> FaceArea(Mesh &mesh) {
