@@ -1,5 +1,6 @@
 #pragma once
 
+#include <set>
 #include <utility>
 #include <OpenMesh/Core/Utils/Property.hh>
 
@@ -395,4 +396,57 @@ inline OpenMesh::VPropHandleT<T> ReduceFaceVertexProperty(Mesh &mesh, const Open
     mesh.add_property(fph_to);
     ReduceFaceFacePropertyTo(mesh, fph_from, fph_to, init, op);
     return fph_to;
+}
+
+template <typename Mesh>
+inline std::set<typename Mesh::VertexHandle> VertexInRadius(Mesh &mesh, const typename Mesh::VertexHandle &vh, double radius) {
+    double sqradius = radius*radius;
+    OpenMesh::Vec3f center = mesh.point(vh);
+    std::set<Mesh::VertexHandle> vertices;
+    std::set<Mesh::VertexHandle> vertices_to_check = { vh };
+    do {
+        Mesh::VertexHandle current_vh = *vertices_to_check.begin();
+        vertices_to_check.erase(current_vh);
+        if ((mesh.point(current_vh) - center).sqrnorm() <= sqradius) {
+            vertices.insert(current_vh);
+            ForEachVertexVertexCCW(mesh, current_vh, [&vertices, &vertices_to_check](Mesh &mesh, const Mesh::VertexHandle &next_vh) {
+                if (vertices.count(next_vh) == 0 && vertices_to_check.count(next_vh) == 0) {
+                    vertices_to_check.insert(next_vh);
+                }
+            });
+        }
+    } while (vertices_to_check.size() > 0);
+    return vertices;
+}
+
+template <typename Mesh>
+inline std::set<typename Mesh::FaceHandle> FaceInRadius(Mesh &mesh, const typename Mesh::VertexHandle &vh, double radius) {
+    double sqradius = radius*radius;
+    OpenMesh::Vec3f center = mesh.point(vh);
+    std::set<Mesh::FaceHandle> faces;
+    std::set<Mesh::FaceHandle> faces_to_check;
+
+    ForEachVertexFaceCCW(mesh, vh, [&faces_to_check](Mesh &mesh, const Mesh::FaceHandle &fh) {
+        faces_to_check.insert(fh);
+    });
+
+    do {
+        Mesh::FaceHandle current_fh = *faces_to_check.begin();
+        faces_to_check.erase(current_fh);
+        bool is_face_inside = true;
+        ForEachFaceVertexCCW(mesh, current_fh, [&sqradius, &center, &is_face_inside](Mesh &mesh, const Mesh::VertexHandle &vh) {
+            if ((mesh.point(vh) - center).sqrnorm() > sqradius) {
+                is_face_inside = false;
+            }
+        });
+        if (is_face_inside) {
+            faces.insert(current_fh);
+            ForEachFaceFaceCCW(mesh, current_fh, [&faces, &faces_to_check](Mesh &mesh, const Mesh::FaceHandle &next_fh) {
+                if (faces.count(next_fh) == 0 && faces_to_check.count(next_fh) == 0) {
+                    faces_to_check.insert(next_fh);
+                }
+            });
+        }
+    } while (faces_to_check.size() > 0);
+    return faces;
 }
