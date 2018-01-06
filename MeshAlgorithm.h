@@ -419,6 +419,7 @@ inline std::set<typename Mesh::VertexHandle> VertexInRadius(Mesh &mesh, const ty
     return vertices;
 }
 
+/* strictly inclusive */
 template <typename Mesh>
 inline std::set<typename Mesh::FaceHandle> FaceInRadius(Mesh &mesh, const typename Mesh::VertexHandle &vh, double radius) {
     double sqradius = radius*radius;
@@ -437,6 +438,39 @@ inline std::set<typename Mesh::FaceHandle> FaceInRadius(Mesh &mesh, const typena
         ForEachFaceVertexCCW(mesh, current_fh, [&sqradius, &center, &is_face_inside](Mesh &mesh, const Mesh::VertexHandle &vh) {
             if ((mesh.point(vh) - center).sqrnorm() > sqradius) {
                 is_face_inside = false;
+            }
+        });
+        if (is_face_inside) {
+            faces.insert(current_fh);
+            ForEachFaceFaceCCW(mesh, current_fh, [&faces, &faces_to_check](Mesh &mesh, const Mesh::FaceHandle &next_fh) {
+                if (faces.count(next_fh) == 0 && faces_to_check.count(next_fh) == 0) {
+                    faces_to_check.insert(next_fh);
+                }
+            });
+        }
+    } while (faces_to_check.size() > 0);
+    return faces;
+}
+
+/* can partially-outside */
+template <typename Mesh>
+inline std::set<typename Mesh::FaceHandle> FaceByRadius(Mesh &mesh, const typename Mesh::VertexHandle &vh, double radius) {
+    double sqradius = radius*radius;
+    OpenMesh::Vec3f center = mesh.point(vh);
+    std::set<Mesh::FaceHandle> faces;
+    std::set<Mesh::FaceHandle> faces_to_check;
+
+    ForEachVertexFaceCCW(mesh, vh, [&faces_to_check](Mesh &mesh, const Mesh::FaceHandle &fh) {
+        faces_to_check.insert(fh);
+    });
+
+    do {
+        Mesh::FaceHandle current_fh = *faces_to_check.begin();
+        faces_to_check.erase(current_fh);
+        bool is_face_inside = false;
+        ForEachFaceVertexCCW(mesh, current_fh, [&sqradius, &center, &is_face_inside](Mesh &mesh, const Mesh::VertexHandle &vh) {
+            if ((mesh.point(vh) - center).sqrnorm() <= sqradius) {
+                is_face_inside = true;
             }
         });
         if (is_face_inside) {
